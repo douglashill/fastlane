@@ -117,12 +117,13 @@ module Spaceship
     def handle_two_factor(response)
       two_factor_url = "https://github.com/fastlane/fastlane/tree/master/spaceship#2-step-verification"
       puts("Two-factor Authentication (6 digits code) is enabled for account '#{self.user}'")
-
+      
+      #                                             ### this method lives in client.rb right now!
       if !File.exist?(persistent_cookie_path) && self.class.spaceship_session_env.to_s.length.zero?
         puts("If you're running this in a non-interactive session (e.g. server or CI)")
         puts("check out #{two_factor_url}")
       else
-        # If the cookie is set but still required, the cookie is expired
+        # If the cookie is set but still required, the cookie is expired # TODO Is this really true?
         puts("Your session cookie has been expired.")
       end
 
@@ -187,15 +188,5 @@ module Spaceship
       req.headers["Accept"] = "application/json"
       req.headers["scnt"] = @scnt
     end
-
-
-    # The following is also used in client.rb directly
-
-    # Fetch the session cookie from the environment
-    # (if exists)
-    def self.spaceship_session_env
-      ENV["FASTLANE_SESSION"] || ENV["SPACESHIP_SESSION"]
-    end
-
   end
 end

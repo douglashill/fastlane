@@ -480,35 +480,6 @@ module Spaceship
       end
     end
 
-    # Only needed for 2 step
-    def load_session_from_file
-      if File.exist?(persistent_cookie_path)
-        puts("Loading session from '#{persistent_cookie_path}'") if Spaceship::Globals.verbose?
-        @cookie.load(persistent_cookie_path)
-        return true
-      end
-      return false
-    end
-
-    def load_session_from_env
-      return if self.class.spaceship_session_env.to_s.length == 0
-      puts("Loading session from environment variable") if Spaceship::Globals.verbose?
-
-      file = Tempfile.new('cookie.yml')
-      file.write(self.class.spaceship_session_env.gsub("\\n", "\n"))
-      file.close
-
-      begin
-        @cookie.load(file.path)
-      rescue => ex
-        puts("Error loading session from environment")
-        puts("Make sure to pass the session in a valid format")
-        raise ex
-      ensure
-        file.unlink
-      end
-    end
-    
     # Get the `itctx` from the new (22nd May 2017) API endpoint "olympus"
     def fetch_olympus_session
       response = request(:get, "https://olympus.itunes.apple.com/v1/session")
@@ -762,6 +733,43 @@ module Spaceship
       params = Faraday::Utils::ParamsHash[params].to_query
       headers = { 'Content-Type' => 'application/x-www-form-urlencoded' }.merge(headers)
       return params, headers
+    end
+
+
+    
+    # Only needed for 2 step
+    def load_session_from_file
+      if File.exist?(persistent_cookie_path)
+        puts("Loading session from '#{persistent_cookie_path}'") if Spaceship::Globals.verbose?
+        @cookie.load(persistent_cookie_path)
+        return true
+      end
+      return false
+    end
+
+    def load_session_from_env
+      return if self.class.spaceship_session_env.to_s.length == 0
+      puts("Loading session from environment variable") if Spaceship::Globals.verbose?
+
+      file = Tempfile.new('cookie.yml')
+      file.write(self.class.spaceship_session_env.gsub("\\n", "\n"))
+      file.close
+
+      begin
+        @cookie.load(file.path)
+      rescue => ex
+        puts("Error loading session from environment")
+        puts("Make sure to pass the session in a valid format")
+        raise ex
+      ensure
+        file.unlink
+      end
+    end
+
+    # Fetch the session cookie from the environment
+    # (if exists)
+    def self.spaceship_session_env
+      ENV["FASTLANE_SESSION"] || ENV["SPACESHIP_SESSION"]
     end
   end
   # rubocop:enable Metrics/ClassLength
