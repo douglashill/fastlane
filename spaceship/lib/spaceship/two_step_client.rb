@@ -26,7 +26,7 @@ module Spaceship
       elsif r.body.kind_of?(Hash) && r.body["trustedPhoneNumbers"].kind_of?(Array) && r.body["trustedPhoneNumbers"].first.kind_of?(Hash)
         handle_two_factor(r)
       else
-        raise "Invalid 2 step response #{r.body}"
+        raise "Invalid 2 step response #{r.body}" # TODO Better error message
       end
     end
 
