@@ -53,31 +53,13 @@ module Spaceship
     GatewayTimeoutError = Spaceship::GatewayTimeoutError
     InternalServerError = Spaceship::InternalServerError
 
-    # Authenticates with Apple's web services. This method has to be called once
-    # to generate a valid session. The session will automatically be used from then
-    # on.
-    #
-    # This method will automatically use the username from the Appfile (if available)
-    # and fetch the password from the Keychain (if available)
-    #
-    # @param user (String) (optional): The username (usually the email address)
-    # @param password (String) (optional): The password
-    #
-    # @raise InvalidUserCredentialsError: raised if authentication failed
-    #
-    # @return (Spaceship::Client) The client the login method was called for
-    def self.login(user = nil, password = nil)
-      instance = self.new
-      if instance.login(user, password)
-        instance
-      else
-        raise InvalidUserCredentialsError.new, "Invalid User Credentials"
-      end
-    end
-
     def self.hostname
       raise "You must implement self.hostname"
     end
+
+    #####################################################
+    # @!group Teams + User
+    #####################################################
 
     # @return (Array) A list of all available teams
     def teams
@@ -198,6 +180,10 @@ module Spaceship
       (team_information || {})['name']
     end
 
+    #####################################################
+    # @!group Client + Logger
+    #####################################################
+
     # Instantiates a client but with a cookie derived from another client.
     #
     # HACK: since the `@cookie` is not exposed, we use this hacky way of sharing the instance.
@@ -257,6 +243,10 @@ module Spaceship
 
       @logger
     end
+
+    #####################################################
+    # @!group Cookie
+    #####################################################
 
     ##
     # Return the session cookie.
@@ -330,6 +320,28 @@ module Spaceship
     #####################################################
     # @!group Login and Team Selection
     #####################################################
+
+    # Authenticates with Apple's web services. This method has to be called once
+    # to generate a valid session. The session will automatically be used from then
+    # on.
+    #
+    # This method will automatically use the username from the Appfile (if available)
+    # and fetch the password from the Keychain (if available)
+    #
+    # @param user (String) (optional): The username (usually the email address)
+    # @param password (String) (optional): The password
+    #
+    # @raise InvalidUserCredentialsError: raised if authentication failed
+    #
+    # @return (Spaceship::Client) The client the login method was called for
+    def self.login(user = nil, password = nil)
+      instance = self.new
+      if instance.login(user, password)
+        instance
+      else
+        raise InvalidUserCredentialsError.new, "Invalid User Credentials"
+      end
+    end
 
     # Authenticates with Apple's web services. This method has to be called once
     # to generate a valid session. The session will automatically be used from then
@@ -525,6 +537,44 @@ module Spaceship
       raise AppleTimeoutError.new, "Could not receive latest API key from App Store Connect, this might be a server issue."
     end
 
+    #####################################################
+    # @!group 2 Step/FA
+    #####################################################
+
+    def load_session_from_file
+      if File.exist?(persistent_cookie_path)
+        puts("Loading session from '#{persistent_cookie_path}'") if Spaceship::Globals.verbose?
+        @cookie.load(persistent_cookie_path)
+        return true
+      end
+      return false
+    end
+
+    def load_session_from_env
+      return if self.class.spaceship_session_env.to_s.length == 0
+      puts("Loading session from environment variable") if Spaceship::Globals.verbose?
+
+      file = Tempfile.new('cookie.yml')
+      file.write(self.class.spaceship_session_env.gsub("\\n", "\n"))
+      file.close
+
+      begin
+        @cookie.load(file.path)
+      rescue => ex
+        puts("Error loading session from environment")
+        puts("Make sure to pass the session in a valid format")
+        raise ex
+      ensure
+        file.unlink
+      end
+    end
+
+    # Fetch the session cookie from the environment
+    # (if exists)
+    def self.spaceship_session_env
+      ENV["FASTLANE_SESSION"] || ENV["SPACESHIP_SESSION"]
+    end
+    
     #####################################################
     # @!group Helpers
     #####################################################
@@ -733,43 +783,6 @@ module Spaceship
       params = Faraday::Utils::ParamsHash[params].to_query
       headers = { 'Content-Type' => 'application/x-www-form-urlencoded' }.merge(headers)
       return params, headers
-    end
-
-
-    
-    # Only needed for 2 step
-    def load_session_from_file
-      if File.exist?(persistent_cookie_path)
-        puts("Loading session from '#{persistent_cookie_path}'") if Spaceship::Globals.verbose?
-        @cookie.load(persistent_cookie_path)
-        return true
-      end
-      return false
-    end
-
-    def load_session_from_env
-      return if self.class.spaceship_session_env.to_s.length == 0
-      puts("Loading session from environment variable") if Spaceship::Globals.verbose?
-
-      file = Tempfile.new('cookie.yml')
-      file.write(self.class.spaceship_session_env.gsub("\\n", "\n"))
-      file.close
-
-      begin
-        @cookie.load(file.path)
-      rescue => ex
-        puts("Error loading session from environment")
-        puts("Make sure to pass the session in a valid format")
-        raise ex
-      ensure
-        file.unlink
-      end
-    end
-
-    # Fetch the session cookie from the environment
-    # (if exists)
-    def self.spaceship_session_env
-      ENV["FASTLANE_SESSION"] || ENV["SPACESHIP_SESSION"]
     end
   end
   # rubocop:enable Metrics/ClassLength
